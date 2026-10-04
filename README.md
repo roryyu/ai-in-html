@@ -115,17 +115,4 @@ python3 -m http.server 8000
 
 两个 examples 同理：`examples/static.html`（Mode A）与 `examples/spec-driven.html`（Mode B 最小模板）。
 
-## 门禁复现
-
-从工作区根目录跑：
-
-```bash
-bash gates/verify-ai-html.sh
-```
-
-门禁用 headless Chrome 做真实渲染验收，逐项判定九个产物文件的存在性、体积区间、HTML 结构、
-离线自包含（无外链 `src`/`href`/`url()`/`@import`/`fetch`）、vendored CSS 的 SHA-256、
-runtime 的 spec 契约与表达式实现、playground 的自测挂点，以及页面里真实计算样式
-（`.button` 的 `borderTopLeftRadius` 应为 `8px`、背景色非全透明）。页面上还挂了
-`<div id="selftest" hidden>`，把 `data-status` / `data-*` 写在 DOM 快照里供门禁读取。
 
