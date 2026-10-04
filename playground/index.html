@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-html playground · sashimi-ui + JSON spec</title>
+<link rel="stylesheet" href="../vendor/sashimi-ui/default.theme.css">
+<link rel="stylesheet" href="../vendor/sashimi-ui/bundle.css">
+<link rel="stylesheet" href="../vendor/sashimi-ui/baseline.css">
+<style>
+	/* 页面自有 class 一律 ai- 前缀（契约 §2.5）；颜色只用 --sui-* 令牌，无硬编码色值（契约 §2.4）。 */
+	:root { color-scheme: light dark; }
+	body { margin: 0; background: var(--sui-color-surface); color: var(--sui-color-neutral-primary); font-size: 15px; }
+	.ai-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sui-base-padding); padding: var(--sui-base-padding) calc(var(--sui-base-padding) * 2); background: var(--sui-color-highlight-secondary); border-bottom: 1px solid var(--sui-color-outline-secondary); }
+	.ai-brand { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+	.ai-title { margin: 0; font-size: 1.05rem; color: var(--sui-color-neutral-primary); }
+	.ai-sub { margin: 0; font-size: 0.78rem; color: var(--sui-color-neutral-secondary); }
+	.ai-presets { display: flex; flex-wrap: wrap; gap: var(--sui-icon-gap); }
+	.ai-topactions { display: flex; flex-wrap: wrap; gap: var(--sui-icon-gap); }
+	.ai-split { display: grid; grid-template-columns: minmax(320px, 42%) minmax(0, 1fr); gap: var(--sui-base-padding); padding: var(--sui-base-padding) calc(var(--sui-base-padding) * 2) 64px; align-items: start; }
+	.ai-pane { background: var(--sui-color-surface); border: 1px solid var(--sui-color-outline-secondary); border-radius: var(--sui-roundness-strong); padding: var(--sui-base-padding); min-width: 0; }
+	.ai-pane h2 { margin: 0 0 var(--sui-base-padding); font-size: 0.95rem; color: var(--sui-color-neutral-secondary); }
+	.ai-toolbar { display: flex; flex-wrap: wrap; gap: var(--sui-icon-gap); margin-bottom: var(--sui-base-padding); }
+	.ai-editor { display: block; width: 100%; min-height: 460px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.55; background: var(--sui-color-highlight-secondary); color: var(--sui-color-neutral-primary); border: 1px solid var(--sui-color-outline-secondary); border-radius: var(--sui-roundness-normal); padding: var(--sui-label-gap); }
+	.ai-valid { margin-top: var(--sui-base-padding); }
+	.ai-valid p { margin-block: var(--sui-label-gap); }
+	.ai-tabs { display: flex; flex-wrap: wrap; gap: var(--sui-label-gap); border-bottom: 1px solid var(--sui-color-outline-secondary); margin-bottom: var(--sui-base-padding); }
+	.ai-pre { margin: 0; padding: var(--sui-base-padding); background: var(--sui-color-highlight-secondary); border-radius: var(--sui-roundness-normal); font-size: 12px; line-height: 1.55; max-height: 62vh; overflow: auto; }
+	.ai-scroll { max-height: 62vh; overflow: auto; }
+	.ai-preview > h1 { font-size: 1.8rem; margin-block: var(--sui-base-padding) var(--sui-label-gap); }
+	.ai-preview > h2 { font-size: 1.3rem; margin-block: var(--sui-base-padding) var(--sui-label-gap); }
+	.ai-preview > h3 { font-size: 1.05rem; margin-block: var(--sui-base-padding) var(--sui-label-gap); }
+	.ai-preview p { margin-block: var(--sui-label-gap); }
+	.ai-preview hr { margin-block: var(--sui-base-padding); }
+	.ai-preview table { margin-block: var(--sui-label-gap); }
+	.ai-hint { color: var(--sui-color-key-secondary); font-size: 0.8rem; margin: var(--sui-label-gap) 0 0; }
+	@media (max-width: 960px) {
+		.ai-split { grid-template-columns: minmax(0, 1fr); }
+		.ai-brand { margin-right: 0; }
+	}
+</style>
+</head>
+<body>
+<!-- 离线图标 sprite：runtime 渲染 Icon / Callout / Button 图标时用 <use href="#ai-icon-*"> 引用这里（契约 §3.6）。 -->
+<svg style="display:none" aria-hidden="true" focusable="false">
+	<symbol id="ai-icon-check" viewBox="0 0 24 24"><polyline points="4,12.5 9.5,18 20,6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+	<symbol id="ai-icon-close" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+	<symbol id="ai-icon-plus" viewBox="0 0 24 24"><path d="M12 5 L12 19 M5 12 L19 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+	<symbol id="ai-icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11 L12 17" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.3" fill="currentColor"/></symbol>
+	<symbol id="ai-icon-warning" viewBox="0 0 24 24"><path d="M12 4 L21 19.5 L3 19.5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10 L12 14.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></symbol>
+	<symbol id="ai-icon-arrow-forward" viewBox="0 0 24 24"><path d="M4 12 L19 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M13 6 L19 12 L13 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<!-- 自测挂点：脚本在同步阶段写 data-*（契约 §7.6）；--dump-dom 抓快照时不会早于它。 -->
+<div id="selftest" hidden></div>
+
+<header class="ai-topbar">
+	<div class="ai-brand">
+		<h1 class="ai-title">ai-html playground</h1>
+		<p class="ai-sub">左边写 JSON spec，右边看渲染 —— 零依赖、离线、class 只用 sashimi-ui 白名单。</p>
+	</div>
+	<div class="ai-presets" id="presets" role="group" aria-label="预设切换"></div>
+	<div class="ai-topactions">
+		<button class="button" type="button" id="tb-apply">应用 spec</button>
+		<button class="button secondary" type="button" id="tb-copy">复制 spec</button>
+	</div>
+</header>
+
+<main class="ai-split">
+	<section class="ai-pane" aria-label="spec 编辑器">
+		<h2>spec JSON</h2>
+		<div class="ai-toolbar">
+			<button class="button" type="button" id="tb-apply2">应用</button>
+			<button class="button" type="button" id="tb-format">格式化</button>
+			<button class="button secondary" type="button" id="tb-reset">重置为预设</button>
+			<button class="button tertiary" type="button" id="tb-copy2">复制 spec</button>
+			<button class="button shy" type="button" id="tb-prompt">复制系统提示</button>
+		</div>
+		<label class="label" for="spec">可编辑的 spec（输入后 300ms 防抖校验）</label>
+		<textarea class="textarea ai-editor" id="spec" spellcheck="false" autocomplete="off" rows="26"></textarea>
+		<div class="ai-valid" id="valid" aria-live="polite"></div>
+		<p class="ai-hint" id="hint"></p>
+	</section>
+
+	<section class="ai-pane" aria-label="渲染结果">
+		<div class="ai-tabs" id="tabs" role="tablist">
+			<button class="tab-item active" type="button" data-pane="preview" role="tab" aria-selected="true">预览</button>
+			<button class="tab-item" type="button" data-pane="state" role="tab" aria-selected="false">状态 JSON</button>
+			<button class="tab-item" type="button" data-pane="log" role="tab" aria-selected="false">动作日志</button>
+		</div>
+		<div class="ai-preview ai-scroll" id="preview"></div>
+		<div id="state" hidden><pre class="ai-pre" id="state-pre"></pre></div>
+		<div class="ai-scroll" id="log" hidden></div>
+	</section>
+</main>
+
+<!-- 经典 script（非 module），file:// 直接双击即可运行（契约 §2.1 / §7.1）。 -->
+<script src="../runtime/ai-html.js"></script>
+<script>
+(function () {
+	"use strict";
+
+	/* ---- 页面自有常量 ---- */
+	var WHITELIST = ["active", "anchor_bottom", "anchor_left", "anchor_right", "anchor_top", "button", "callout", "card", "card-option", "checkbox", "chip", "circular", "destructive", "details", "dialog", "dragover", "error", "fieldset", "file-input", "helper-text", "icon", "info", "input", "key-value", "label", "legend", "link", "menu-item", "meter", "modal", "passive", "popover", "progress", "radio", "seamless", "secondary", "select", "shy", "skeleton", "success", "switch", "tab-item", "table", "tertiary", "textarea", "warning"];
+	var ORDER = ["landing", "dashboard", "form", "settings", "all"];
+	var FLIP_TEXT = "这是 visible 条件翻转后的内容";
+	var TMPL_SRC = "自测：${/probe/name} / ${/probe/note}";
+
+	/* ---- 预设（契约 §7.3）：每个预设的初始 state 都是干净值 ---- */
+	var PRESETS = {
+		landing: {
+			label: "落地页",
+			state: { ui: { showTip: false }, app: { name: "ai-html", visits: 12840 }, plan: { seats: 6 } },
+			spec: {
+				root: "page",
+				elements: {
+					page: { type: "Stack", props: { direction: "column", gap: "16px" }, children: ["hero", "cards", "note"] },
+					hero: { type: "Card", children: ["h", "lead", "row", "tip"] },
+					h: { type: "Heading", props: { level: 1, text: "一次对话，一份可渲染的 HTML" } },
+					lead: { type: "Text", props: { text: "Mode A 静态直出零 JavaScript；Mode B 用扁平 JSON spec 驱动渲染，class 只用 sashimi-ui 白名单。" } },
+					row: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["cta", "more", "ver"] },
+					cta: { type: "Button", props: { label: "看看条件提示", icon: "arrow-forward", action: "setState", actionParams: { statePath: "/ui/showTip", value: true } } },
+					more: { type: "Link", props: { text: "载入组件全览", as: "button", variant: "seamless", action: "loadPreset", actionParams: { id: "all" } } },
+					ver: { type: "Chip", props: { label: "sashimi-ui v2.1.0", as: "span", active: true } },
+					tip: { type: "Callout", props: { variant: "info", icon: "info", title: "visible 条件", text: FLIP_TEXT }, visible: [{ $state: "/ui/showTip", truthy: true }] },
+					cards: { type: "Grid", props: { columns: 3, gap: "var(--sui-base-padding)" }, children: ["c1", "c2", "c3"] },
+					c1: { type: "Card", children: ["c1h", "c1t"] },
+					c1h: { type: "Heading", props: { level: 3, text: "Mode A 静态直出" } },
+					c1t: { type: "Text", props: { text: "纯 HTML 加 sashimi class，产物就是最终页面。" } },
+					c2: { type: "Card", children: ["c2h", "c2t"] },
+					c2h: { type: "Heading", props: { level: 3, text: "Mode B spec 驱动" } },
+					c2t: { type: "Text", props: { text: "同一份描述可平移到 @json-render 的真实 registry。" } },
+					c3: { type: "Card", children: ["c3h", "c3t"] },
+					c3h: { type: "Heading", props: { level: 3, text: "可被门禁裁决" } },
+					c3t: { type: "Text", props: { $template: "当前 ${/app/name} · 访问量 ${/app/visits} · 席位 ${/plan/seats}" } },
+					note: { type: "Callout", props: { variant: "warning", icon: "warning", text: "sashimi-ui 没有布局与间距 class，间距一律写内联 style 或自有 ai- 前缀 class。" } }
+				}
+			}
+		},
+
+		dashboard: {
+			label: "仪表盘",
+			state: { ui: { showTip: false }, metrics: { visits: 12840, signups: 934, churn: 2.4 }, quota: { used: 62 } },
+			spec: {
+				root: "page",
+				elements: {
+					page: { type: "Stack", props: { direction: "column", gap: "16px" }, children: ["head", "kpi", "rows", "tip"] },
+					head: { type: "Card", children: ["h", "sub", "bar"] },
+					h: { type: "Heading", props: { level: 2, text: "运营仪表盘" } },
+					sub: { type: "Text", props: { $template: "今日访问 ${/metrics/visits} · 新增注册 ${/metrics/signups} · 流失率 ${/metrics/churn}" } },
+					bar: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["refresh", "live", "batch", "why"] },
+					refresh: { type: "Button", props: { label: "刷新数据", icon: "arrow-forward", action: "setState", actionParams: { statePath: "/metrics/visits", value: 13206 } } },
+					live: { type: "Chip", props: { label: "实时", active: true } },
+					batch: { type: "Chip", props: { label: "按日汇总" } },
+					why: { type: "Button", props: { label: "解释口径", variant: "secondary", action: "setState", actionParams: { statePath: "/ui/showTip", value: true } } },
+					kpi: { type: "Grid", props: { columns: 2, gap: "var(--sui-base-padding)" }, children: ["kv", "quota"] },
+					kv: { type: "KeyValue", props: { items: [
+						{ label: "访问量", value: { $state: "/metrics/visits" } },
+						{ label: "注册", value: { $state: "/metrics/signups" } },
+						{ label: "流失率", value: { $cond: { $state: "/metrics/churn", gt: 2 }, $then: "偏高", $else: "正常" } }
+					] } },
+					quota: { type: "Card", children: ["qLab", "meter", "pLab", "progress", "ind"] },
+					qLab: { type: "Label", props: { text: "API 配额（本月）" } },
+					meter: { type: "Meter", props: { value: { $state: "/quota/used" }, min: 0, max: 100, low: 20, high: 80, optimum: 100 } },
+					pLab: { type: "Label", props: { text: "存储水位" } },
+					progress: { type: "Progress", props: { value: 62, max: 100 } },
+					ind: { type: "Progress", props: { indeterminate: true } },
+					rows: { type: "Card", children: ["t", "details"] },
+					t: { type: "Table", props: {
+						columns: [{ key: "region", label: "地区" }, { key: "pv", label: "访问量" }, { key: "rate", label: "转化率" }],
+						rows: [{ region: "华东", pv: 5210, rate: "8.1%" }, { region: "华北", pv: 4180, rate: "6.7%" }, { region: "华南", pv: 3450, rate: "7.3%" }],
+						caption: "近 7 天汇总（示例数据）"
+					} },
+					details: { type: "Details", props: { summary: "口径说明", open: true }, children: ["dtxt"] },
+					dtxt: { type: "Text", props: { text: "转化率 = 注册数 / 访问数；示例数据仅用于演示表格与量表组件。" } },
+					tip: { type: "Callout", props: { variant: "info", icon: "info", title: "visible 条件", text: FLIP_TEXT }, visible: [{ $state: "/ui/showTip", truthy: true }] }
+				}
+			}
+		},
+
+		form: {
+			label: "表单",
+			state: { ui: { showTip: false }, touched: { email: false }, form: { name: "", email: "", country: "cn", plan: "team", agree: false, notify: true, bio: "" } },
+			spec: {
+				root: "page",
+				elements: {
+					page: { type: "Stack", props: { direction: "column", gap: "16px" }, children: ["card"] },
+					card: { type: "Card", children: ["h", "tip", "basic", "plan", "extra"] },
+					h: { type: "Heading", props: { level: 2, text: "创建账号" } },
+					tip: { type: "Callout", props: { variant: "info", icon: "info", title: "visible 条件", text: FLIP_TEXT }, visible: [{ $state: "/ui/showTip", truthy: true }] },
+					basic: { type: "Fieldset", props: { legend: "基本信息" }, children: ["nLab", "name", "eLab", "email", "eErr", "cLab", "country", "bioLab", "bio"] },
+					nLab: { type: "Label", props: { text: "昵称", for: "f-name" } },
+					name: { type: "Input", props: { id: "f-name", name: "name", type: "text", placeholder: "2-16 个字符", value: { $bindState: "/form/name" } } },
+					eLab: { type: "Label", props: { text: "邮箱", for: "f-email", error: { $cond: { $state: "/touched/email", truthy: true }, $then: true, $else: false } } },
+					email: { type: "Input", props: { id: "f-email", name: "email", type: "email", placeholder: "you@example.com", value: { $bindState: "/form/email" }, error: { $cond: { $state: "/touched/email", truthy: true }, $then: true, $else: false } } },
+					eErr: { type: "HelperText", props: { text: "邮箱还没填，或者缺少 @", error: true }, visible: [
+						{ $state: "/touched/email", truthy: true },
+						{ $state: "/form/email", contains: "@", not: true }
+					] },
+					cLab: { type: "Label", props: { text: "所在地区", for: "f-country" } },
+					country: {
+						type: "Select",
+						props: {
+							id: "f-country", name: "country", value: { $bindState: "/form/country" },
+							options: [{ value: "cn", label: "中国大陆" }, { value: "hk", label: "中国香港" }, { value: "sg", label: "新加坡" }]
+						},
+						watch: { "/form/country": { action: "loadCities", params: { country: { $state: "/form/country" } } } }
+					},
+					bioLab: { type: "Label", props: { text: "自我介绍", for: "f-bio" } },
+					bio: { type: "Textarea", props: { id: "f-bio", name: "bio", rows: 3, placeholder: "一句话介绍自己", value: { $bindState: "/form/bio" } } },
+					plan: { type: "Fieldset", props: { legend: "套餐" }, children: ["pTeam", "pSolo", "pEnt", "agree", "notify"] },
+					pTeam: { type: "Radio", props: { name: "plan", value: "team", label: "团队版 · 6 席位", checked: { $bindState: "/form/plan" } } },
+					pSolo: { type: "Radio", props: { name: "plan", value: "solo", label: "个人版", checked: { $bindState: "/form/plan" } } },
+					pEnt: { type: "Radio", props: { name: "plan", value: "ent", label: "企业版", checked: { $bindState: "/form/plan" } } },
+					agree: { type: "Checkbox", props: { label: "我已阅读并同意服务条款", checked: { $bindState: "/form/agree" } } },
+					notify: { type: "Switch", props: { label: "接收产品更新邮件", checked: { $bindState: "/form/notify" } } },
+					extra: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["submit", "clear", "touch", "peek"] },
+					submit: { type: "Button", props: { label: "提交", icon: "check", action: "announce", actionParams: { text: "表单已提交（演示）" } } },
+					clear: { type: "Button", props: { label: "清空", variant: "secondary", icon: "close", action: "clearForm" } },
+					touch: { type: "Button", props: { label: "标记邮箱已填写", variant: "tertiary", action: "setState", actionParams: { statePath: "/touched/email", value: true } } },
+					peek: { type: "Link", props: { text: "查看 README", href: "../README.md", variant: "seamless" } }
+				}
+			}
+		},
+
+		settings: {
+			label: "设置页",
+			state: { ui: { showTip: false }, tab: "profile", dialog: false, profile: { displayName: "指挥官", density: "comfortable" }, notify: { email: true, digest: false } },
+			spec: {
+				root: "page",
+				elements: {
+					page: { type: "Stack", props: { direction: "column", gap: "16px" }, children: ["head", "tabs", "pProfile", "pSecurity", "pBilling", "menu", "tip", "dlg"] },
+					head: { type: "Card", children: ["h", "row"] },
+					h: { type: "Heading", props: { level: 2, text: "账号设置" } },
+					row: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["save", "about"] },
+					save: { type: "Button", props: { label: "保存设置", icon: "check", action: "announce", actionParams: { text: "设置已保存（演示）" } } },
+					about: { type: "Button", props: { label: "关于 ai-html", variant: "secondary", icon: "info", action: "setState", actionParams: { statePath: "/dialog", value: true } } },
+					tabs: { type: "Stack", props: { direction: "row", gap: "var(--sui-label-gap)" }, children: ["tProfile", "tSecurity", "tBilling"] },
+					tProfile: { type: "TabItem", props: { label: "资料", active: { $cond: { $state: "/tab", eq: "profile" }, $then: true, $else: false }, action: "setState", actionParams: { statePath: "/tab", value: "profile" } } },
+					tSecurity: { type: "TabItem", props: { label: "安全", active: { $cond: { $state: "/tab", eq: "security" }, $then: true, $else: false }, action: "setState", actionParams: { statePath: "/tab", value: "security" } } },
+					tBilling: { type: "TabItem", props: { label: "账单", active: { $cond: { $state: "/tab", eq: "billing" }, $then: true, $else: false }, action: "setState", actionParams: { statePath: "/tab", value: "billing" } } },
+					pProfile: { type: "Card", visible: [{ $state: "/tab", eq: "profile" }], children: ["pnLab", "pn", "pdLab", "pd", "ph"] },
+					pnLab: { type: "Label", props: { text: "显示名称", for: "s-name" } },
+					pn: { type: "Input", props: { id: "s-name", name: "displayName", type: "text", value: { $bindState: "/profile/displayName" } } },
+					pdLab: { type: "Label", props: { text: "界面密度", for: "s-density" } },
+					pd: { type: "Select", props: {
+						id: "s-density", name: "density", value: { $bindState: "/profile/density" },
+						options: [{ value: "compact", label: "紧凑" }, { value: "comfortable", label: "舒适" }, { value: "spacious", label: "宽松" }]
+					} },
+					ph: { type: "HelperText", props: { text: "密度只影响本地显示，不会同步到其它设备。" } },
+					pSecurity: { type: "Card", visible: [{ $state: "/tab", eq: "security" }], children: ["fsSec", "secTip"] },
+					fsSec: { type: "Fieldset", props: { legend: "通知方式" }, children: ["swMail", "cbDigest"] },
+					swMail: { type: "Switch", props: { label: "邮件通知", checked: { $bindState: "/notify/email" } } },
+					cbDigest: { type: "Checkbox", props: { label: "每周摘要", checked: { $bindState: "/notify/digest" } } },
+					secTip: { type: "HelperText", props: { text: "关闭全部通知需要管理员权限。" } },
+					pBilling: { type: "Card", visible: [{ $state: "/tab", eq: "billing" }], children: ["kv", "upgrade"] },
+					kv: { type: "KeyValue", props: { items: [{ label: "当前套餐", value: "团队版" }, { label: "席位", value: "6" }, { label: "下次扣费", value: "11 月 1 日" }] } },
+					upgrade: { type: "Button", props: { label: "升级到企业版", variant: "tertiary", action: "announce", actionParams: { text: "演示页面不做真实支付" } } },
+					menu: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["m1", "m2", "m3"] },
+					m1: { type: "MenuItem", props: { label: "导出设置 JSON", active: true, action: "copyState" } },
+					m2: { type: "MenuItem", props: { label: "重新载入当前预设", action: "loadPreset", actionParams: { id: "settings" } } },
+					m3: { type: "MenuItem", props: { label: "载入表单预设", action: "loadPreset", actionParams: { id: "form" } } },
+					tip: { type: "Callout", props: { variant: "info", icon: "info", title: "visible 条件", text: FLIP_TEXT }, visible: [{ $state: "/ui/showTip", truthy: true }] },
+					dlg: { type: "Dialog", props: { open: { $bindState: "/dialog" }, mode: "modal", title: "Dialog 组件", closeLabel: "知道了" }, children: ["dlgText"] },
+					dlgText: { type: "Text", props: { text: "Dialog 用原生 dialog 元素：props.open 为 true 时调用 showModal()，关闭时把绑定路径写回 false。" } }
+				}
+			}
+		},
+
+		all: {
+			label: "组件全览",
+			state: { ui: { showTip: false }, dialog: false, demo: { meals: 3, dense: true } },
+			spec: {
+				root: "page",
+				elements: {
+					page: { type: "Stack", props: { direction: "column", gap: "16px" }, children: ["head", "tip", "grid", "foot", "dlg"] },
+
+					head: { type: "Card", children: ["h", "sub", "row"] },
+					h: { type: "Heading", props: { level: 2, text: "组件全览：31 个 type" } },
+					sub: { type: "Text", props: { $template: "当前预设 all · 条件提示 ${/ui/showTip} · 用餐人数 ${/demo/meals}" } },
+					row: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["openTip", "closeTip", "copyIt", "readme", "goLanding"] },
+					openTip: { type: "Button", props: { label: "展开条件提示", icon: "plus", action: "setState", actionParams: { statePath: "/ui/showTip", value: true } } },
+					closeTip: { type: "Button", props: { label: "收起", variant: "secondary", icon: "close", action: "setState", actionParams: { statePath: "/ui/showTip", value: false } } },
+					copyIt: { type: "Button", props: { label: "复制本页 spec", variant: "tertiary", action: "copySpec" } },
+					readme: { type: "Link", props: { text: "打开 README", href: "../README.md", variant: "passive" } },
+					goLanding: { type: "Button", props: { label: "回到落地页", variant: "shy", icon: "arrow-forward", action: "loadPreset", actionParams: { id: "landing" } } },
+
+					tip: { type: "Callout", props: { variant: "info", icon: "info", title: "visible 条件", text: FLIP_TEXT }, visible: [{ $state: "/ui/showTip", truthy: true }] },
+
+					grid: { type: "Grid", props: { columns: 2, gap: "var(--sui-base-padding)" }, children: ["cLayout", "cType", "cCtrl", "cData", "cNav", "cForm"] },
+
+					cLayout: { type: "Card", children: ["hLayout", "stackBox", "gridBox", "kvBox", "divBox", "note"] },
+					hLayout: { type: "Heading", props: { level: 3, text: "布局与容器" } },
+					stackBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["stA", "stB"] },
+					stA: { type: "Chip", props: { label: "Stack 子节点 1" } },
+					stB: { type: "Chip", props: { label: "Stack 子节点 2" } },
+					gridBox: { type: "Grid", props: { columns: 2, gap: "var(--sui-label-gap)" }, children: ["cellA", "cellB"] },
+					cellA: { type: "Card", props: { as: "a", href: "../README.md" }, children: ["cellAT"] },
+					cellAT: { type: "Text", props: { text: "a.card 作为链接" } },
+					cellB: { type: "Card", props: { as: "button", action: "announce", actionParams: { text: "点击了 button.card" } }, children: ["cellBT"] },
+					cellBT: { type: "Text", props: { text: "button.card 作为按钮" } },
+					kvBox: { type: "KeyValue", props: { items: [{ label: "组件 type", value: 31 }, { label: "白名单 class", value: 46 }, { label: "设计令牌", value: 33 }] } },
+					divBox: { type: "Divider" },
+					note: { type: "Text", props: { text: "sashimi-ui 没有布局 class，卡片内靠内联 style 或自有 ai- 前缀 class 排版。" } },
+
+					cType: { type: "Card", children: ["hType", "txtBox", "chipBox", "callouts", "iconBox", "linkBox"] },
+					hType: { type: "Heading", props: { level: 3, text: "排版与展示" } },
+					txtBox: { type: "Text", props: { text: "Text 渲染为 p，Heading 渲染为 h1 到 h4，两者都不加 class，因为 baseline.css 已给裸元素样式。" } },
+					chipBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-label-gap)", wrap: true }, children: ["chipBtn", "chipSpan", "chipLink", "chipOn"] },
+					chipBtn: { type: "Chip", props: { label: "button.chip", action: "announce", actionParams: { text: "点击了 button.chip" } } },
+					chipSpan: { type: "Chip", props: { label: "span.chip", as: "span" } },
+					chipLink: { type: "Chip", props: { label: "a.chip", href: "../README.md" } },
+					chipOn: { type: "Chip", props: { label: "chip active", active: true } },
+					callouts: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["calInfo", "calOk", "calWarn", "calBad"] },
+					calInfo: { type: "Callout", props: { variant: "info", icon: "info", text: "callout info" } },
+					calOk: { type: "Callout", props: { variant: "success", icon: "check", text: "callout success" } },
+					calWarn: { type: "Callout", props: { variant: "warning", icon: "warning", text: "callout warning" } },
+					calBad: { type: "Callout", props: { variant: "destructive", icon: "close", text: "callout destructive" } },
+					iconBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", align: "center" }, children: ["icCheck", "icClose", "icPlus", "icInfo", "icWarn", "icArrow"] },
+					icCheck: { type: "Icon", props: { name: "check", size: "20px" } },
+					icClose: { type: "Icon", props: { name: "close", size: "20px" } },
+					icPlus: { type: "Icon", props: { name: "plus", size: "20px" } },
+					icInfo: { type: "Icon", props: { name: "info", size: "20px" } },
+					icWarn: { type: "Icon", props: { name: "warning", size: "20px" } },
+					icArrow: { type: "Icon", props: { name: "arrow-forward", size: "20px" } },
+					linkBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["lnkA", "lnkSeam", "lnkPassive", "lnkBtn"] },
+					lnkA: { type: "Link", props: { text: "a.link", href: "../README.md" } },
+					lnkSeam: { type: "Link", props: { text: "link seamless", href: "../README.md", variant: "seamless" } },
+					lnkPassive: { type: "Link", props: { text: "link passive", href: "../README.md", variant: "passive" } },
+					lnkBtn: { type: "Link", props: { text: "button.link", as: "button", action: "announce", actionParams: { text: "点击了 button.link" } } },
+
+					cCtrl: { type: "Card", children: ["hCtrl", "fs", "optBox", "fileBox", "btnBox", "htBox"] },
+					hCtrl: { type: "Heading", props: { level: 3, text: "控件" } },
+					fs: { type: "Fieldset", props: { legend: "控件组" }, children: ["iLab", "iText", "iNum", "sLab", "sel", "taLab", "ta", "cb", "sw", "rd"] },
+					iLab: { type: "Label", props: { text: "Input text", for: "a-text" } },
+					iText: { type: "Input", props: { id: "a-text", name: "text", type: "text", placeholder: "占位文字", value: "已填" } },
+					iNum: { type: "Input", props: { id: "a-num", name: "num", type: "number", value: 3 } },
+					sLab: { type: "Label", props: { text: "Select", for: "a-sel" } },
+					sel: { type: "Select", props: { id: "a-sel", name: "sel", value: "b", options: [{ value: "a", label: "选项 A" }, { value: "b", label: "选项 B" }] } },
+					taLab: { type: "Label", props: { text: "Textarea", for: "a-ta" } },
+					ta: { type: "Textarea", props: { id: "a-ta", name: "ta", rows: 3, placeholder: "多行输入" } },
+					cb: { type: "Checkbox", props: { label: "Checkbox 已勾选", checked: true } },
+					sw: { type: "Switch", props: { label: "Switch 开启", checked: true } },
+					rd: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["rdLab", "rd1", "rd2"] },
+					rdLab: { type: "Label", props: { text: "Radio 同名分组" } },
+					rd1: { type: "Radio", props: { name: "radio-demo", value: "x", label: "选项 X", checked: true } },
+					rd2: { type: "Radio", props: { name: "radio-demo", value: "y", label: "选项 Y" } },
+					optBox: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["co1", "co2"] },
+					co1: { type: "CardOption", props: { title: "card-option + radio", description: "未选中", control: "radio", name: "opt", value: "1" } },
+					co2: { type: "CardOption", props: { title: "card-option + checkbox", description: "已勾选", control: "checkbox", checked: true } },
+					fileBox: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["fileLab", "file1", "file2"] },
+					fileLab: { type: "Label", props: { text: "FileInput" } },
+					file1: { type: "FileInput", props: { label: "file-input secondary", accept: "image/*", variant: "secondary" } },
+					file2: { type: "FileInput", props: { label: "file-input shy + dragover + error", accept: ".pdf", variant: "shy", dragover: true, error: true } },
+					btnBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["b1", "b2", "b3", "b4", "b5", "b6", "b7"] },
+					b1: { type: "Button", props: { label: "primary" } },
+					b2: { type: "Button", props: { label: "secondary", variant: "secondary" } },
+					b3: { type: "Button", props: { label: "tertiary", variant: "tertiary" } },
+					b4: { type: "Button", props: { label: "shy", variant: "shy" } },
+					b5: { type: "Button", props: { label: "disabled", disabled: true } },
+					b6: { type: "Button", props: { label: "loading", loading: true, icon: "arrow-forward" } },
+					b7: { type: "Button", props: { label: "a.button", href: "../README.md" } },
+					htBox: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["ht", "htErr"] },
+					ht: { type: "HelperText", props: { text: "helper-text 默认态" } },
+					htErr: { type: "HelperText", props: { text: "helper-text error", error: true } },
+
+					cData: { type: "Card", children: ["hData", "tbl", "pLab", "prog", "progInd", "progSkel", "circ", "meterBox", "det"] },
+					hData: { type: "Heading", props: { level: 3, text: "数据展示" } },
+					tbl: { type: "Table", props: {
+						columns: [{ key: "k", label: "名称" }, { key: "v", label: "数量" }],
+						rows: [{ k: "白名单 class", v: 46 }, { k: "组件 type", v: 31 }, { k: "设计令牌", v: 33 }],
+						caption: "sashimi-ui v2.1.0 事实面"
+					} },
+					pLab: { type: "Label", props: { text: "progress 的四种形态" } },
+					prog: { type: "Progress", props: { value: 40, max: 100 } },
+					progInd: { type: "Progress", props: { indeterminate: true } },
+					progSkel: { type: "Progress", props: { value: 70, max: 100, variant: "skeleton" } },
+					circ: { type: "Progress", props: { value: 70, max: 100, variant: "circular" } },
+					meterBox: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["mLab", "mtr"] },
+					mLab: { type: "Label", props: { text: "meter" } },
+					mtr: { type: "Meter", props: { value: 72, min: 0, max: 100, low: 20, high: 80, optimum: 100 } },
+					det: { type: "Details", props: { summary: "details 折叠面板", open: true }, children: ["detText"] },
+					detText: { type: "Text", props: { text: "Details 用原生 details/summary，props.open 映射到 open 属性。" } },
+
+					cNav: { type: "Card", children: ["hNav", "tabsBox", "menuBox", "dlgBtn"] },
+					hNav: { type: "Heading", props: { level: 3, text: "导航与浮层" } },
+					tabsBox: { type: "Stack", props: { direction: "row", gap: "var(--sui-label-gap)", wrap: true }, children: ["nav1", "nav2", "nav3"] },
+					nav1: { type: "TabItem", props: { label: "tab-item active", active: true } },
+					nav2: { type: "TabItem", props: { label: "tab-item" } },
+					nav3: { type: "TabItem", props: { label: "a.tab-item", href: "../README.md" } },
+					menuBox: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["mi1", "mi2", "mi3"] },
+					mi1: { type: "MenuItem", props: { label: "button.menu-item", action: "announce", actionParams: { text: "点击了 menu-item" } } },
+					mi2: { type: "MenuItem", props: { label: "menu-item active", active: true } },
+					mi3: { type: "MenuItem", props: { label: "a.menu-item", href: "../README.md" } },
+					dlgBtn: { type: "Button", props: { label: "打开 Dialog", icon: "plus", action: "setState", actionParams: { statePath: "/dialog", value: true } } },
+
+					cForm: { type: "Card", children: ["hForm", "fsForm"] },
+					hForm: { type: "Heading", props: { level: 3, text: "表单辅助" } },
+					fsForm: { type: "Fieldset", props: { legend: "辅助类" }, children: ["lgForm", "cbForm", "htForm", "htFormErr"] },
+					lgForm: { type: "Legend", props: { text: "Legend 组件渲染为 legend.legend" } },
+					cbForm: { type: "Checkbox", props: { label: "Fieldset 里的 Checkbox" } },
+					htForm: { type: "HelperText", props: { text: "Fieldset 错误态要下沉到子控件，见表单预设。" } },
+					htFormErr: { type: "HelperText", props: { text: "helper-text error", error: true } },
+
+					foot: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)", wrap: true, align: "center" }, children: ["toForm"] },
+					toForm: { type: "Link", props: { text: "试试表单预设", as: "button", action: "loadPreset", actionParams: { id: "form" } } },
+
+					dlg: { type: "Dialog", props: { open: { $bindState: "/dialog" }, mode: "modal", title: "Dialog 组件", closeLabel: "关闭" }, children: ["dlgText"] },
+					dlgText: { type: "Text", props: { text: "Dialog 用原生 dialog 元素：props.open 为 true 时调用 showModal()，关闭时把绑定路径写回 false。" } }
+				}
+			}
+		}
+	};
+
+	/* ---- DOM 引用与小工具 ---- */
+	var selftest = document.getElementById("selftest");
+	var preview = document.getElementById("preview");
+	var editor = document.getElementById("spec");
+	var validBox = document.getElementById("valid");
+	var hintBox = document.getElementById("hint");
+	var statePre = document.getElementById("state-pre");
+	var logBox = document.getElementById("log");
+	var chipsBox = document.getElementById("presets");
+	var ctrl = null;
+	var current = "landing";
+	var timer = 0;
+
+	function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+	function cx() {
+		var a = [], i;
+		for (i = 0; i < arguments.length; i++) if (arguments[i]) a.push(String(arguments[i]));
+		return a.join(" ");
+	}
+	function clone(v) { return JSON.parse(JSON.stringify(v)); }
+	function flat(v) {
+		return String(v === undefined || v === null ? "" : v).replace(/[\r\n\t]+/g, " ").replace(/"/g, "'").trim();
+	}
+	function el(tag, cls, text) {
+		var n = document.createElement(tag);
+		if (cls) n.className = cls;
+		if (text !== undefined) n.textContent = String(text);
+		return n;
+	}
+	function stamp(ms) {
+		var d = new Date(ms), p = function (n, w) { return String(n).padStart(w || 2, "0"); };
+		return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + "." + p(d.getMilliseconds(), 3);
+	}
+
+	/* ---- 校验区：合法时 helper-text，非法时 callout destructive（预览永不变空白） ---- */
+	function setValid(res, note) {
+		validBox.replaceChildren();
+		if (res.ok) {
+			validBox.appendChild(el("p", "helper-text", note || "spec 合法：root、children 引用与组件类型均有效。"));
+			return;
+		}
+		var box = el("div", "callout destructive");
+		var head = el("p");
+		head.appendChild(el("strong", null, "spec 有 " + res.errors.length + " 个问题，预览保持上一版"));
+		box.appendChild(head);
+		res.errors.forEach(function (e) { box.appendChild(el("p", null, e)); });
+		validBox.appendChild(box);
+	}
+	function setHint(msg) { hintBox.textContent = msg ? String(msg) : ""; }
+
+	/* ---- 右栏状态与动作日志 ---- */
+	function paintState() {
+		statePre.textContent = ctrl ? JSON.stringify(ctrl.getState(), null, 2) : "";
+	}
+	function paintLog() {
+		var log = ctrl ? ctrl.getActionLog().slice().reverse() : [];
+		logBox.replaceChildren();
+		if (!log.length) {
+			logBox.appendChild(el("p", "helper-text", "还没有动作。点击预览里的按钮，或在编辑器里改动 spec。"));
+			return;
+		}
+		var table = el("table", "table");
+		var thead = el("thead"), htr = el("tr");
+		["时间", "动作", "参数", "处理"].forEach(function (t) {
+			var th = el("th", null, t);
+			th.setAttribute("scope", "col");
+			htr.appendChild(th);
+		});
+		thead.appendChild(htr);
+		table.appendChild(thead);
+		var body = el("tbody");
+		log.forEach(function (e) {
+			var tr = el("tr");
+			tr.appendChild(el("td", null, stamp(e.at)));
+			tr.appendChild(el("td", null, e.name));
+			tr.appendChild(el("td", null, JSON.stringify(e.params)));
+			tr.appendChild(el("td", null, e.handled ? "已处理" : "未注册"));
+			body.appendChild(tr);
+		});
+		table.appendChild(body);
+		table.appendChild(el("caption", null, "共 " + log.length + " 条，倒序显示"));
+		logBox.appendChild(table);
+	}
+
+	/* ---- 预设装载 ---- */
+	function markChips() {
+		var list = chipsBox.querySelectorAll("[data-preset]"), i;
+		for (i = 0; i < list.length; i++) {
+			list[i].className = cx("chip", list[i].getAttribute("data-preset") === current && "active");
+		}
+	}
+	function mount(presetId) {
+		var preset = PRESETS[own(PRESETS, presetId) ? presetId : "landing"];
+		current = presetId;
+		if (ctrl) ctrl.destroy();
+		ctrl = AIHtml.render(preset.spec, preview, {
+			state: clone(preset.state),
+			handlers: HANDLERS,
+			onAction: paintLog,
+			onChange: paintState
+		});
+		editor.value = JSON.stringify(preset.spec, null, 2);
+		markChips();
+		paintState();
+		paintLog();
+		setValid(AIHtml.validate(preset.spec), "已载入预设「" + preset.label + "」：" + Object.keys(preset.spec.elements).length + " 个元素。");
+		setHint("");
+	}
+
+	/* ---- 编辑器：解析 → 校验 → 合法才重渲染 ---- */
+	function apply() {
+		var spec, res;
+		try { spec = JSON.parse(editor.value); }
+		catch (e) {
+			setValid({ ok: false, errors: ["JSON 解析失败：" + (e && e.message ? e.message : String(e))] });
+			return;
+		}
+		res = AIHtml.validate(spec);
+		if (!res.ok) { setValid(res); return; }
+		ctrl.setSpec(spec);
+		setValid(res, "已应用编辑中的 spec（" + Object.keys(spec.elements).length + " 个元素）。");
+		paintState();
+		paintLog();
+	}
+	function onEdit() {
+		window.clearTimeout(timer);
+		timer = window.setTimeout(apply, 300);
+	}
+	function format() {
+		try { editor.value = JSON.stringify(JSON.parse(editor.value), null, 2); apply(); }
+		catch (e) { setValid({ ok: false, errors: ["无法格式化：JSON 解析失败"] }); }
+	}
+	/* 复制：先走 execCommand，失败再退回 async clipboard；两条路都拒绝时只提示，不抛异常。 */
+	function copyText(text, what) {
+		var ok = false;
+		try {
+			var tmp = document.createElement("textarea");
+			tmp.value = text;
+			tmp.setAttribute("readonly", "");
+			tmp.style.position = "fixed";
+			tmp.style.opacity = "0";
+			document.body.appendChild(tmp);
+			tmp.select();
+			ok = document.execCommand("copy");
+			document.body.removeChild(tmp);
+		} catch (e) {
+			ok = false;
+		}
+		if (ok) { setHint(what + " 已复制到剪贴板。"); return; }
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard.writeText(text).then(
+				function () { setHint(what + " 已复制到剪贴板。"); },
+				function () { setHint("浏览器拒绝了剪贴板访问，请手动复制：" + what); }
+			);
+			return;
+		}
+		setHint("浏览器拒绝了剪贴板访问，请手动复制：" + what);
+	}
+
+	/* ---- 动作 handler（未注册的名字 runtime 也不会抛异常，只记 handled:false） ---- */
+	var HANDLERS = {
+		loadPreset: function (p) { if (p && p.id) mount(p.id); },
+		copySpec: function () { copyText(editor.value, "spec"); },
+		copyState: function () { copyText(ctrl ? JSON.stringify(ctrl.getState(), null, 2) : "{}", "状态 JSON"); },
+		announce: function (p) { setHint(p && p.text ? p.text : "已触发动作"); },
+		clearForm: function (p, ctx) {
+			ctx.set("/form/name", "");
+			ctx.set("/form/email", "");
+			ctx.set("/form/agree", false);
+			ctx.set("/touched/email", false);
+		},
+		loadCities: function (p) { setHint("watch 触发 loadCities，地区 = " + (p && p.country ? p.country : "-")); }
+	};
+
+	/* ---- 自测辅助 ---- */
+	function collectClasses(root) {
+		var seen = {}, out = [], all = root.querySelectorAll("*"), i, j, raw, parts, c;
+		for (i = 0; i < all.length; i++) {
+			raw = all[i].className;
+			if (typeof raw !== "string") continue;
+			parts = raw.split(/\s+/);
+			for (j = 0; j < parts.length; j++) {
+				c = parts[j];
+				if (!c || seen[c] || WHITELIST.indexOf(c) === -1) continue;
+				seen[c] = 1;
+				out.push(c);
+			}
+		}
+		return out.sort().join(",");
+	}
+	function templateProbe() {
+		var box = document.createElement("div"), value;
+		AIHtml.render({
+			root: "t",
+			elements: { t: { type: "Text", props: { text: { $template: TMPL_SRC } } } }
+		}, box, { state: { probe: { name: "ai-html", note: "运行时" } } });
+		value = box.textContent;
+		if (!value || value === TMPL_SRC || value.indexOf("${") !== -1) {
+			throw new Error("$template 求值异常：" + value);
+		}
+		return value;
+	}
+	function badSpec() {
+		return {
+			root: "ghost",
+			elements: { ghost: { type: "NotAType", props: {}, children: ["missing"] } }
+		};
+	}
+	function measure(presetId) {
+		var p = {}, btn, cs, before, after, alpha;
+		p.runtime = AIHtml.version;
+		p.catalog = Object.keys(AIHtml.catalog).length;
+		p.preset = presetId;
+		p.rendered = preview.getElementsByTagName("*").length;
+		p.classes = collectClasses(preview);
+		btn = preview.querySelector(".button");
+		if (!btn) throw new Error("预览区内没有 .button，无法测量计算样式");
+		cs = window.getComputedStyle(btn);
+		p.radius = cs.borderTopLeftRadius;
+		p.bg = cs.backgroundColor;
+		if (p.classes.indexOf("button") === -1 || p.classes.indexOf("card") === -1) {
+			throw new Error("预览区 class 集合缺少 button 或 card：" + p.classes);
+		}
+		/* 背景非空且非全透明：解析计算值的 alpha 通道，页面里不写任何色值字面量。 */
+		alpha = /rgba?\(([^)]*)\)/.exec(p.bg);
+		if (!p.bg || (alpha && Number(alpha[1].split(",")[3]) === 0)) {
+			throw new Error("首个 .button 的背景色不可见：" + p.bg);
+		}
+		before = preview.textContent.indexOf(FLIP_TEXT) !== -1;
+		ctrl.dispatch("setState", { statePath: "/ui/showTip", value: true });
+		ctrl.dispatch("setState", { statePath: "/ui/probe", value: "self-test" });
+		after = preview.textContent.indexOf(FLIP_TEXT) !== -1;
+		p["visible-flip"] = after ? "shown" : "hidden";
+		p.actions = ctrl.getActionLog().length;
+		p["state-keys"] = Object.keys(ctrl.getState()).sort().join(",");
+		if (before) throw new Error("自测开始时 visible 元素已可见，预设初始状态不干净");
+		if (!after) throw new Error("派发 setState 之后 visible 元素仍未出现");
+		if (p.actions < 2) throw new Error("自测期间动作条数不足 2");
+		p.template = templateProbe();
+		p["validate-bad"] = AIHtml.validate(badSpec()).ok ? "accepted" : "rejected";
+		if (p["validate-bad"] === "accepted") throw new Error("故意损坏的 spec 未被 validate 拒绝");
+		return p;
+	}
+	/* 自测属性清单（契约 §7.6）：属性名写全，读取时去掉 data- 前缀。 */
+	var FLUSH_ATTRS = ["data-runtime", "data-catalog", "data-preset", "data-rendered", "data-classes", "data-radius", "data-bg", "data-state-keys", "data-actions", "data-visible-flip", "data-template", "data-validate-bad"];
+	function flush(probe) {
+		var i, name, key;
+		for (i = 0; i < FLUSH_ATTRS.length; i++) {
+			name = FLUSH_ATTRS[i];
+			key = name.slice(5);
+			if (probe[key] !== undefined) selftest.setAttribute(name, flat(probe[key]));
+		}
+		if (probe.status === "fail" && probe.error) selftest.setAttribute("data-error", flat(probe.error));
+		selftest.setAttribute("data-status", probe.status);
+	}
+
+	/* ---- 右栏页签 ---- */
+	function showPane(name) {
+		["preview", "state", "log"].forEach(function (k) {
+			var btn = document.querySelector('#tabs [data-pane="' + k + '"]');
+			var node = document.getElementById(k);
+			if (k === "state") node = statePre.parentNode;
+			btn.className = cx("tab-item", k === name && "active");
+			btn.setAttribute("aria-selected", k === name ? "true" : "false");
+			node.hidden = k !== name;
+		});
+	}
+
+	/* ---- 读 hash：#preset=<id> / #selftest=off（契约 §7.5） ---- */
+	function readHash() {
+		var parts = location.hash.replace(/^#/, "").split("&"), i, kv;
+		for (i = 0; i < parts.length; i++) {
+			kv = parts[i].split("=");
+			if (kv[0] === "preset" && own(PRESETS, kv[1])) return kv[1];
+		}
+		return "landing";
+	}
+	function selftestOff() {
+		return /(^|&)selftest=off(&|$)/.test(location.hash.replace(/^#/, ""));
+	}
+
+	/* ---- 启动：全部同步，无 setTimeout / rAF / Promise（契约 §2.3 / §7.6） ---- */
+	function boot() {
+		var start = readHash(), probe = null;
+		ORDER.forEach(function (id) {
+			var b = el("button", "chip", PRESETS[id].label);
+			b.type = "button";
+			b.setAttribute("data-preset", id);
+			b.addEventListener("click", function () { mount(id); });
+			chipsBox.appendChild(b);
+		});
+		document.querySelectorAll("#tabs [data-pane]").forEach(function (b) {
+			b.addEventListener("click", function () { showPane(b.getAttribute("data-pane")); });
+		});
+		document.getElementById("tb-apply").addEventListener("click", apply);
+		document.getElementById("tb-apply2").addEventListener("click", apply);
+		document.getElementById("tb-format").addEventListener("click", format);
+		document.getElementById("tb-reset").addEventListener("click", function () { mount(current); });
+		document.getElementById("tb-copy").addEventListener("click", function () { copyText(editor.value, "spec"); });
+		document.getElementById("tb-copy2").addEventListener("click", function () { copyText(editor.value, "spec"); });
+		document.getElementById("tb-prompt").addEventListener("click", function () {
+			copyText(AIHtml.prompt(), "AIHtml.prompt() 系统提示");
+		});
+		editor.addEventListener("input", onEdit);
+
+		if (typeof AIHtml !== "object") {
+			selftest.setAttribute("data-status", "fail");
+			selftest.setAttribute("data-error", "window.AIHtml 未定义，runtime 脚本没有加载成功");
+			return;
+		}
+		mount(start);
+		if (selftestOff()) return;          // #selftest=off：供人浏览，不写任何 data-*
+		try {
+			probe = measure(start);
+			probe.status = "ok";
+		} catch (e) {
+			probe = { status: "fail", error: e && e.message ? e.message : String(e) };
+		}
+		mount(start);                        // 恢复纯净的当前预设状态，界面与动作日志回到初始态
+		flush(probe);                        // data-status 最后写
+	}
+	boot();
+})();
+</script>
+</body>
+</html>

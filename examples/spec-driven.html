@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-html Mode B · spec 驱动最小模板</title>
+<link rel="stylesheet" href="../vendor/sashimi-ui/default.theme.css">
+<link rel="stylesheet" href="../vendor/sashimi-ui/bundle.css">
+<link rel="stylesheet" href="../vendor/sashimi-ui/baseline.css">
+<style>
+	/* 自有 class 一律 ai- 前缀；颜色只用 --sui-* 令牌（契约 §2.4 / §2.5）。 */
+	body { margin: 0; padding: 0 var(--sui-base-padding) 64px; background: var(--sui-color-surface); color: var(--sui-color-neutral-primary); }
+	.ai-wrap { max-width: 560px; margin: 0 auto; }
+	.ai-muted { color: var(--sui-color-neutral-secondary); font-size: 0.82rem; margin: 0; }
+	.ai-brand { display: flex; align-items: baseline; gap: var(--sui-icon-gap); border-bottom: 1px solid var(--sui-color-outline-secondary); padding: var(--sui-base-padding) 0; margin-bottom: var(--sui-base-padding); }
+</style>
+</head>
+<body>
+<!-- 离线图标 sprite：runtime 渲染 Icon/Callout 时用 <use href="#ai-icon-*"> 引用这里。 -->
+<svg style="display:none" aria-hidden="true" focusable="false">
+	<symbol id="ai-icon-check" viewBox="0 0 24 24"><polyline points="4,12.5 9.5,18 20,6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+	<symbol id="ai-icon-close" viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+	<symbol id="ai-icon-plus" viewBox="0 0 24 24"><path d="M12 5 L12 19 M5 12 L19 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+	<symbol id="ai-icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11 L12 17" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.3" fill="currentColor"/></symbol>
+	<symbol id="ai-icon-warning" viewBox="0 0 24 24"><path d="M12 4 L21 19.5 L3 19.5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10 L12 14.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></symbol>
+	<symbol id="ai-icon-arrow-forward" viewBox="0 0 24 24"><path d="M4 12 L19 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M13 6 L19 12 L13 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<!-- 自测挂点：脚本同步写入 data-status / data-rendered / data-radius / data-echo（契约 §8.2）。 -->
+<div id="selftest" hidden></div>
+
+<div class="ai-wrap">
+	<p class="ai-brand"><strong>ai-html</strong><span class="ai-muted">Mode B：spec 驱动，同一份 JSON 描述可以换 React 实现</span></p>
+	<div id="app"></div>
+</div>
+
+<!-- 经典 script，非 ES module：file:// 直接双击也能跑（契约 §2.1）。 -->
+<script src="../runtime/ai-html.js"></script>
+<script>
+/* spec 常量：一个 $bindState、一个 $cond、一个 setState 动作（契约 §8.2）。 */
+var SPEC = {
+	root: "panel",
+	elements: {
+		panel: { type: "Card", children: ["title", "field", "echo", "actions"] },
+		title: { type: "Heading", props: { level: 2, text: "Mode B 最小模板" } },
+		field: { type: "Stack", props: { direction: "column", gap: "var(--sui-label-gap)" }, children: ["whoLabel", "who", "whoHint"] },
+		whoLabel: { type: "Label", props: { text: "你的名字", for: "who" } },
+		who: { type: "Input", props: { id: "who", type: "text", name: "who", placeholder: "输入后下面两处文案会跟着变", value: { $bindState: "/form/name" } } },
+		whoHint: { type: "HelperText", props: { text: { $cond: { $state: "/form/name" }, $then: { $template: "你好，${/form/name}" }, $else: "还没填名字" } } },
+		echo: { type: "Callout", props: { variant: "info", icon: "info", text: { $template: "绑定值回显：${/form/name}" } } },
+		actions: { type: "Stack", props: { direction: "row", gap: "var(--sui-icon-gap)" }, children: ["save", "clear"] },
+		save: { type: "Button", props: { label: "写入 state", icon: "check", action: "setState", actionParams: { statePath: "/form/name", value: "ai-html" } } },
+		clear: { type: "Button", props: { label: "清空", variant: "secondary", icon: "close", action: "setState", actionParams: { statePath: "/form/name", value: "" } } }
+	}
+};
+
+var mount = document.getElementById("app");
+var box = document.getElementById("selftest");
+
+// 同步渲染：无 setTimeout / requestAnimationFrame / Promise（契约 §2.3）。
+var ctl = AIHtml.render(SPEC, mount, {
+	state: { form: { name: "" } },
+	handlers: {},
+	onChange: function () { /* 真实应用里在这里做持久化或上报 */ }
+});
+
+/* 同步自测：真实执行「写 state → 重渲染 → 读回 DOM 值」，不伪造属性。 */
+(function () {
+	var field, btn, echoed;
+	try {
+		ctl.set("/form/name", "ai-html");                 // 写 state，触发整树重渲染
+		field = mount.querySelector("input.input");
+		if (!field) throw new Error("预览区内没有 input.input，$bindState 目标缺失");
+		echoed = field.value;                             // 从 DOM 读回，不取 state
+		if (echoed !== "ai-html") throw new Error("重渲染后输入框值为 " + echoed);
+		btn = mount.querySelector(".button");
+		if (!btn) throw new Error("预览区内没有 .button，无法测量计算样式");
+		box.setAttribute("data-rendered", String(mount.getElementsByTagName("*").length));
+		box.setAttribute("data-radius", window.getComputedStyle(btn).borderTopLeftRadius);
+		box.setAttribute("data-echo", echoed);
+		box.setAttribute("data-status", "ok");
+	} catch (e) {
+		box.setAttribute("data-status", "fail");
+		box.setAttribute("data-error", String(e && e.message ? e.message : e).replace(/[\r\n]+/g, " "));
+	}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+body {
+	background-color: var(--sui-color-surface);
+	color: var(--sui-color-neutral-primary);
+	font-size: 1rem;
+	line-height: 1.6;
+	padding: 24px 24px 80px;
+}
+
+p {
+	margin-block: 16px;
+}
+
+h1 {
+	font-size: 3.2rem;
+	font-weight: 700;
+	line-height: 1;
+	margin-block: 32px;
+}
+
+h2 {
+	font-size: 1.8rem;
+	font-weight: 700;
+	line-height: 1.2;
+	margin-block: 64px 20px;
+}
+
+h3 {
+	font-size: 1.4rem;
+	font-weight: 600;
+	line-height: 1.2;
+	margin-block: 48px 16px;
+}
+
+h4 {
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.2;
+	margin-block: 32px 16px;
+}
+
+hgroup:has(h1) {
+	margin-block: 32px;
+}
+
+hgroup:has(h2) {
+	margin-block: 64px 20px;
+}
+
+hgroup:has(h3) {
+	margin-block: 48px 16px;
+}
+
+hgroup:has(h4) {
+	margin-block: 32px 16px;
+}
+
+hgroup h1,
+hgroup h2,
+hgroup h3,
+hgroup h4 {
+	margin-block: 0.2em;
+}
+
+hgroup p {
+	margin-block: 0.2em;
+}
+
+ul,
+ol,
+menu {
+	padding-inline-start: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+mark {
+	padding-inline: 0.1em;
+	color: var(--sui-color-neutral-primary);
+	background: linear-gradient(
+		transparent 55%,
+		var(--sui-color-key-tertiary) 55%
+	);
+}
+
+hr {
+	border: none;
+	border-top: 1px solid var(--sui-color-outline-secondary);
+}
+
+figure {
+	margin-inline: 0;
+}
+
+figcaption {
+	font-size: 0.8rem;
+	color: var(--sui-color-neutral-secondary);
+}
