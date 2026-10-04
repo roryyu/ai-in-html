@@ -47,17 +47,56 @@ ai-html/
 
 ## 作为 Agent Skill 安装
 
-把整个 `ai-html/` 目录放到 agent 的 skills 目录下即可，目录名要等于 `SKILL.md` 里的 `name`：
+仓库地址：https://github.com/roryyu/ai-in-html。整个技能就是一个目录（含 `SKILL.md` 及其
+`runtime/`、`references/`、`examples/`、`playground/`、`vendor/`），把它放进 agent 的 skills
+目录即可，**目录名要等于 `SKILL.md` frontmatter 里的 `name`（`ai-in-html`）**。
+
+**方式一：从仓库 clone（推荐，随仓库同步更新）**
 
 ```bash
-# 复制（推荐，产物自包含）
-cp -R ai-html /path/to/your/agent/.agents/skills/ai-html
+git clone https://github.com/roryyu/ai-in-html.git \
+  /path/to/your/agent/.agents/skills/ai-in-html
+```
 
-# 或建立符号链接，便于随仓库同步更新
-ln -s "$PWD/ai-html" /path/to/your/agent/.agents/skills/ai-html
+**方式二：本地复制**（产物自包含，适合离线交付）
+
+```bash
+# 在本仓库根目录执行
+cp -R ai-html /path/to/your/agent/.agents/skills/ai-in-html
+
+# 或建立符号链接，便于随本地仓库改动同步
+ln -s "$PWD/ai-html" /path/to/your/agent/.agents/skills/ai-in-html
 ```
 
 装好后 agent 读到 `SKILL.md` 的 frontmatter 就能按需加载 `references/` 与 `examples/`。
+
+## 开始使用
+
+装好后，直接对 agent 说一句需求即可触发本技能。三个模式各一个最小示例：
+
+- **Mode A 做界面（默认）**：
+  > 「用 ai-in-html 做一个今日菜单的静态 HTML 页，离线能双击打开。」
+  agent 会手写 HTML + sashimi class、零 JavaScript，产物类似 `examples/static.html`。
+
+- **Mode B spec 驱动**：
+  > 「用一份 JSON spec 做一个带表单双向绑定和条件渲染的设置页。」
+  agent 会写一份 spec 常量 + `runtime/ai-html.js` 渲染，产物类似 `examples/spec-driven.html`；
+  可打开 `playground/index.html` 左边改 spec、右边看渲染。
+
+- **Mode C 一页 HTML 答问题**：
+  > 「RPS 限流算法的原理我没看懂，用 HTML 给我讲讲。」
+  agent 会写一页扩展 Markdown 草稿，再用 vendored CLI 一次渲染成单文件讲解页：
+
+  ```bash
+  node vendor/answer-me-with-html/am.mjs render draft.md -o answer.html
+  ```
+
+  （需本机 Node.js 20+；`answer.html` 同样离线自包含，双击可开。）
+
+### 不装 agent，纯手动跑
+
+只想看效果，跳过安装：`git clone` 后直接双击 `examples/static.html`、`examples/spec-driven.html`
+或 `playground/index.html`（详见下方「打开 playground」）。
 
 ## 打开 playground
 
