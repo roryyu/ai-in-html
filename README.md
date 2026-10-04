@@ -129,16 +129,3 @@ runtime 的 spec 契约与表达式实现、playground 的自测挂点，以及�
 （`.button` 的 `borderTopLeftRadius` 应为 `8px`、背景色非全透明）。页面上还挂了
 `<div id="selftest" hidden>`，把 `data-status` / `data-*` 写在 DOM 快照里供门禁读取。
 
-## 出处与许可
-
-| 上游 | 版本 | 许可 |
-| --- | --- | --- |
-| [vercel-labs/json-render](https://github.com/vercel-labs/json-render) | spec 形态对齐 | Apache-2.0 |
-| [yuto-hasegawa/sashimi-ui](https://github.com/yuto-hasegawa/sashimi-ui) | 2.1.0 | MIT |
-| [QingYunA/answer-me-with-html](https://github.com/QingYunA/answer-me-with-html) | 0.4.6 | MIT |
-
-**诚实声明：`runtime/ai-html.js` 是 json-render spec 契约的**一个子集的独立实现**，不是
-`@json-render/*` 的代码，也没有包含它们的任何一行。它不实现 SpecStream 流式增量、不实现
-`@json-render/directives` 指令包（`$format` / `$math` / `$concat` 等）、不实现真实锚定的 popover，
-`Dialog` 的 `anchor_*` class 只是定位意图标注。开发过程中实测出的 7 条 runtime 缺陷已全部修复，
-逐条列在 `references/spec-contract.md` §9（保留作为回归锚点）。sashimi-ui 的三个 CSS 文件是上游原样取件，未做任何改写。
